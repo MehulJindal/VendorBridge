@@ -12,6 +12,8 @@ import quotationRoutes from "./modules/quotations/quotation.routes.js";
 import purchaseOrderRoutes from "./modules/purchase_orders/purchaseOrder.routes.js";
 import invoiceRoutes from "./modules/invoices/invoice.routes.js";
 import approvalRoutes from "./modules/approvals/approval.routes.js";
+import vendorRoutes from "./modules/vendors/vendor.routes.js";
+import userRoutes from "./modules/users/user.routes.js";
 
 const app = express();
 
@@ -39,6 +41,8 @@ app.get("/health", (req, res) => {
  app.use("/api/purchase-orders", purchaseOrderRoutes);
  app.use("/api/invoices", invoiceRoutes);
  app.use("/api/approvals", approvalRoutes);
+ app.use("/api/vendors", vendorRoutes);
+ app.use("/api/users", userRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
