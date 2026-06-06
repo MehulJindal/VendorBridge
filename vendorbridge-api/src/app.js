@@ -14,6 +14,7 @@ import invoiceRoutes from "./modules/invoices/invoice.routes.js";
 import approvalRoutes from "./modules/approvals/approval.routes.js";
 import vendorRoutes from "./modules/vendors/vendor.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
+import mlRoutes from "./modules/ml/ml.routes.js";
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.get("/health", (req, res) => {
  app.use("/api/approvals", approvalRoutes);
  app.use("/api/vendors", vendorRoutes);
  app.use("/api/users", userRoutes);
+ app.use("/api/ml", mlRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
