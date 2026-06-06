@@ -12,3 +12,11 @@ npm-debug.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+ml-service/venv/
+ml-service/__pycache__/
+ml-service/**/__pycache__/
+ml-service/*.pyc
+ml-service/.env
+dist/
+.env.local
