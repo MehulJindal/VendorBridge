@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url = env("DATABASE_URL")
+  
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  PROCUREMENT_OFFICER
+  MANAGER
+  VENDOR
+}
+
+enum RFQStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+enum QuotationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  REJECTED
+  AWARDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+enum POStatus {
+  DRAFT
+  ISSUED
+  ACKNOWLEDGED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+  DISPUTED
+  CANCELLED
+}
+
+// ─── Embedded Types ───────────────────────────────────────────────────────────
+
+type Address {
+  street    String
+  city      String
+  state     String
+  country   String
+  zipCode   String
+}
+
+type LineItem {
+  description String
+  quantity    Float
+  unit        String
+  unitPrice   Float
+  totalPrice  Float
+}
+
+type ContactPerson {
+  name  String
+  email String
+  phone String?
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role     @default(PROCUREMENT_OFFICER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  createdRFQs   RFQ[]        @relation("RFQCreator")
+  approvals     Approval[]   @relation("Approver")
+  createdPOs    PurchaseOrder[] @relation("POCreator")
+
+  @@map("users")
+}
+
+model Vendor {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  companyName     String
+  registrationNo  String        @unique
+  email           String        @unique
+  passwordHash    String
+  contactPerson   ContactPerson
+  address         Address
+  categories      String[]      // e.g. ["IT", "Office Supplies"]
+  rating          Float?        @default(0)
+  isVerified      Boolean       @default(false)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  quotations      Quotation[]
+  invoices        Invoice[]
+
+  @@map("vendors")
+}
+
+model RFQ {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  rfqNumber       String    @unique  // e.g. "RFQ-2024-0001"
+  title           String
+  description     String
+  category        String
+  lineItems       LineItem[]
+  status          RFQStatus @default(DRAFT)
+  publishedAt     DateTime?
+  submissionDeadline DateTime
+  deliveryDeadline   DateTime
+  termsConditions String?
+
+  // Relations
+  creatorId       String    @db.ObjectId
+  creator         User      @relation("RFQCreator", fields: [creatorId], references: [id])
+  quotations      Quotation[]
+  approval        Approval?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("rfqs")
+}
+
+model Quotation {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  quotationNumber String          @unique  // e.g. "QT-2024-0001"
+  lineItems       LineItem[]
+  totalAmount     Float
+  currency        String          @default("USD")
+  validityDays    Int
+  deliveryDays    Int
+  notes           String?
+  status          QuotationStatus @default(SUBMITTED)
+  submittedAt     DateTime        @default(now())
+
+  // ML-generated fields (populated by FastAPI service)
+  riskScore       Float?
+  anomalyFlags    String[]
+
+  // Relations
+  rfqId           String    @db.ObjectId
+  rfq             RFQ       @relation(fields: [rfqId], references: [id])
+  vendorId        String    @db.ObjectId
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+  purchaseOrder   PurchaseOrder?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("quotations")
+}
+
+model Approval {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  status      ApprovalStatus @default(PENDING)
+  comments    String?
+  approvedAt  DateTime?
+
+  // Relations
+  approverId  String         @db.ObjectId
+  approver    User           @relation("Approver", fields: [approverId], references: [id])
+  
+  // Explicit optional relations instead of forced polymorphism
+  rfqId       String?        @unique @db.ObjectId
+  rfq         RFQ?           @relation(fields: [rfqId], references: [id])
+  
+  poId        String?        @unique @db.ObjectId
+  po          PurchaseOrder? @relation(fields: [poId], references: [id])
+  
+  invoiceId   String?        @unique @db.ObjectId
+  invoice     Invoice?       @relation(fields: [invoiceId], references: [id])
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("approvals")
+}
+
+model PurchaseOrder {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  poNumber    String   @unique  // e.g. "PO-2024-0001"
+  lineItems   LineItem[]
+  totalAmount Float
+  currency    String   @default("USD")
+  status      POStatus @default(DRAFT)
+  issuedAt    DateTime?
+  expectedDeliveryDate DateTime?
+  deliveryAddress Address
+
+  // Relations
+  quotationId String   @unique @db.ObjectId
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  creatorId   String   @db.ObjectId
+  creator     User     @relation("POCreator", fields: [creatorId], references: [id])
+  invoice     Invoice?
+  approval    Approval?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("purchase_orders")
+}
+
+model Invoice {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber String        @unique  // e.g. "INV-2024-0001"
+  lineItems     LineItem[]
+  subtotal      Float
+  taxRate       Float         @default(0)
+  taxAmount     Float         @default(0)
+  totalAmount   Float
+  currency      String        @default("USD")
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime
+  paidAt        DateTime?
+  notes         String?
+
+  // Relations
+  purchaseOrderId String       @unique @db.ObjectId
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  vendorId        String       @db.ObjectId
+  vendor          Vendor       @relation(fields: [vendorId], references: [id])
+  approval        Approval?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("invoices")
+}
