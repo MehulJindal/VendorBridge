@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { sendSuccess } from "../../utils/ApiResponse.js";
+import { detectAnomaly } from "../../utils/mlClient.js";
 
 // ── Submit Quotation ───────────────────────────────────────────────────────────
 // POST /api/quotations/rfq/:rfqId
@@ -68,6 +69,40 @@ export const submitQuotation = async (req, res) => {
     },
   });
 
+  // ── ML: Anomaly detection (fire-and-forget, non-blocking) ────────────────────
+  // Fetch recent quotations for same RFQ category to give the model context
+  setImmediate(async () => {
+    try {
+      const historicalQuotes = await prisma.quotation.findMany({
+        where: {
+          rfq:    { category: rfq.category },
+          id:     { not: quotation.id },
+          status: { notIn: ["REJECTED"] },
+        },
+        take: 50,
+        select: {
+          totalAmount:  true,
+          deliveryDays: true,
+          lineItems:    true,
+        },
+      });
+
+      const mlResult = await detectAnomaly(quotation, historicalQuotes);
+
+      // Write riskScore + anomalyFlags back to the quotation record
+      await prisma.quotation.update({
+        where: { id: quotation.id },
+        data: {
+          riskScore:    mlResult.risk_score,
+          anomalyFlags: mlResult.anomaly_flags.map((f) => `[${f.severity}] ${f.flag_type}: ${f.description}`),
+        },
+      });
+    } catch (err) {
+      // Never block the response — ML service may be down
+      console.error("[ML] Anomaly detection failed for quotation", quotation.id, err?.message);
+    }
+  });
+
   sendSuccess(res, quotation, "Quotation submitted successfully.", 201);
 };
 
@@ -79,7 +114,6 @@ export const getQuotationsForRFQ = async (req, res) => {
   const { rfqId } = req.params;
   const isVendor  = req.userType === "VENDOR";
 
-  // Confirm the RFQ exists first — same 404 regardless of caller type
   const rfq = await prisma.rFQ.findUnique({
     where:  { id: rfqId },
     select: { id: true, rfqNumber: true, title: true, status: true },
@@ -87,22 +121,20 @@ export const getQuotationsForRFQ = async (req, res) => {
 
   if (!rfq) throw new ApiError(404, `RFQ with id "${rfqId}" not found.`);
 
-  // Vendors may only probe RFQs that are visible to them
   if (isVendor && rfq.status !== "PUBLISHED") {
     throw new ApiError(404, `RFQ with id "${rfqId}" not found.`);
   }
 
   const where = isVendor
-    ? { rfqId, vendorId: req.vendor.id }  // vendor sees only their own bid
-    : { rfqId };                           // internal users see all bids
+    ? { rfqId, vendorId: req.vendor.id }
+    : { rfqId };
 
   const quotations = await prisma.quotation.findMany({
     where,
     orderBy: { submittedAt: "asc" },
     include: isVendor
-      ? false   // vendor already knows their own identity; no extra join needed
+      ? false
       : {
-          // Internal users get vendor summary alongside each bid for comparison
           vendor: {
             select: {
               id:          true,
@@ -125,14 +157,13 @@ export const getQuotationsForRFQ = async (req, res) => {
 // ── Update Quotation Status ────────────────────────────────────────────────────
 // PATCH /api/quotations/:id/status
 // Access: ADMIN, MANAGER only.
-// If ACCEPTED: atomically awards the parent RFQ in the same transaction.
 
 const VALID_TRANSITIONS = {
   SUBMITTED:    ["UNDER_REVIEW", "REJECTED"],
   UNDER_REVIEW: ["SHORTLISTED", "REJECTED"],
   SHORTLISTED:  ["AWARDED",     "REJECTED"],
-  REJECTED:     [],   // terminal
-  AWARDED:      [],   // terminal
+  REJECTED:     [],
+  AWARDED:      [],
 };
 
 export const updateQuotationStatus = async (req, res) => {
@@ -162,7 +193,6 @@ export const updateQuotationStatus = async (req, res) => {
     );
   }
 
-  // ── Non-awarding update — single write ───────────────────────────────────────
   if (status !== "AWARDED") {
     const updated = await prisma.quotation.update({
       where: { id },
@@ -171,16 +201,12 @@ export const updateQuotationStatus = async (req, res) => {
     return sendSuccess(res, updated, `Quotation status updated to "${status}" successfully.`);
   }
 
-  // ── AWARDED path — Prisma interactive transaction ────────────────────────────
-  // Guarantees both writes succeed or both roll back; no orphaned award state.
   const [updatedQuotation, updatedRFQ] = await prisma.$transaction(async (tx) => {
-    // 1. Mark this quotation as AWARDED
     const awarded = await tx.quotation.update({
       where: { id },
       data:  { status: "AWARDED" },
     });
 
-    // 2. Reject every other SUBMITTED / UNDER_REVIEW / SHORTLISTED bid on the same RFQ
     await tx.quotation.updateMany({
       where: {
         rfqId:  quotation.rfqId,
@@ -190,7 +216,6 @@ export const updateQuotationStatus = async (req, res) => {
       data: { status: "REJECTED" },
     });
 
-    // 3. Close the parent RFQ
     const closedRFQ = await tx.rFQ.update({
       where: { id: quotation.rfqId },
       data:  { status: "AWARDED" },
