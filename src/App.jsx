@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import VendorManagement from "./pages/VendorManagement";
+import UserManagement from "./pages/UserManagement";
 import CreateRFQ from "./pages/CreateRFQ";
 import RFQList from "./pages/RFQList";
 import VendorPortal from "./pages/VendorPortal";
@@ -25,23 +26,37 @@ export default function App() {
     setCurrentRole(role);
     setLoggedIn(true);
     if (role === "vendor") setCurrentScreen("quotations");
+    if (role === "admin") setCurrentScreen("dashboard");
   };
 
   if (!loggedIn) return <Login onLogin={handleLogin} />;
 
   const renderScreen = () => {
     switch (currentScreen) {
-      case "dashboard": return <Dashboard role={currentRole} navigate={setCurrentScreen} />;
-      case "vendors": return <VendorManagement />;
-      case "rfq_create": return <CreateRFQ />;
-      case "rfq_list": return <RFQList />;
-      case "quotations": return <VendorPortal />;
-      case "comparison": return <QuoteComparison />;
-      case "approvals": return <ApprovalWorkflow />;
-      case "po_invoice": return <DocumentGenerator />;
-      case "activity_logs": return <ActivityLogs />;
-      case "analytics": return <AnalyticsReports />;
-      default: return <Dashboard role={currentRole} navigate={setCurrentScreen} />;
+      case "dashboard":
+        return <Dashboard role={currentRole} navigate={setCurrentScreen} />;
+      case "vendors":
+        return <VendorManagement />;
+      case "users":
+        return <UserManagement />;
+      case "rfq_create":
+        return <CreateRFQ />;
+      case "rfq_list":
+        return <RFQList />;
+      case "quotations":
+        return <VendorPortal />;
+      case "comparison":
+        return <QuoteComparison />;
+      case "approvals":
+        return <ApprovalWorkflow />;
+      case "po_invoice":
+        return <DocumentGenerator />;
+      case "activity_logs":
+        return <ActivityLogs />;
+      case "analytics":
+        return <AnalyticsReports />;
+      default:
+        return <Dashboard role={currentRole} navigate={setCurrentScreen} />;
     }
   };
 
@@ -49,17 +64,20 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 flex font-sans">
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
-      <Sidebar 
-        currentScreen={currentScreen} 
-        setCurrentScreen={setCurrentScreen} 
-        currentRole={currentRole} 
-        setCurrentRole={setCurrentRole} 
-        sidebarOpen={sidebarOpen} 
-        setSidebarOpen={setSidebarOpen} 
-        setLoggedIn={setLoggedIn} 
+      <Sidebar
+        currentScreen={currentScreen}
+        setCurrentScreen={setCurrentScreen}
+        currentRole={currentRole}
+        setCurrentRole={setCurrentRole}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        setLoggedIn={setLoggedIn}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
