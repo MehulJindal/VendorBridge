@@ -9,6 +9,8 @@ import { errorHandler } from "./middleware/error.middleware.js";
 import authRoutes from './modules/auth/auth.routes.js';
 import rfqRoutes from "./modules/rfq/rfq.routes.js";
 import quotationRoutes from "./modules/quotations/quotation.routes.js";
+import purchaseOrderRoutes from "./modules/purchase_orders/purchaseOrder.routes.js";
+import invoiceRoutes from "./modules/invoices/invoice.routes.js";
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.get("/health", (req, res) => {
  app.use("/api/auth", authRoutes);
  app.use("/api/rfqs", rfqRoutes);
  app.use("/api/quotations", quotationRoutes);
+ app.use("/api/purchase-orders", purchaseOrderRoutes);
+ app.use("/api/invoices", invoiceRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
