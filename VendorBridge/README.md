@@ -1,2 +1,0 @@
-# VendorBridge
-Odoo X KSV
