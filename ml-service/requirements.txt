@@ -1,0 +1,16 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.8.2
+httpx==0.27.2
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+
+# Time-series forecasting (install at least one)
+# Prophet is preferred; statsmodels is the ARIMA fallback
+prophet==1.1.5
+statsmodels==0.14.2
+
+# For Prophet
+pystan==3.9.1        ; python_version >= "3.10"
+holidays==0.52
