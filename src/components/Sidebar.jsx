@@ -81,23 +81,38 @@ export default function Sidebar({
         {SCREENS.map(({ id, label, icon: Icon }) => {
           // Filter screens based on role
           let isAllowed = true;
-          if (
-            currentRole === "admin" &&
-            ![
+
+          if (currentRole === "procurement_officer") {
+            isAllowed = [
+              "dashboard",
+              "rfq_create",
+              "rfq_list",
+              "comparison",
+              "po_invoice",
+              "activity_logs",
+            ].includes(id);
+          } else if (currentRole === "purchase_manager") {
+            isAllowed = [
+              "dashboard",
+              "approvals",
+              "rfq_list",
+              "activity_logs",
+            ].includes(id);
+          } else if (currentRole === "admin") {
+            isAllowed = [
               "dashboard",
               "vendors",
               "users",
               "analytics",
               "activity_logs",
-            ].includes(id)
-          ) {
-            isAllowed = false;
-          }
-          if (
-            currentRole === "vendor" &&
-            !["quotations", "activity_logs"].includes(id)
-          ) {
-            isAllowed = false;
+            ].includes(id);
+          } else if (currentRole === "vendor") {
+            isAllowed = [
+              "quotations",
+              "rfq_list",
+              "po_invoice",
+              "activity_logs",
+            ].includes(id);
           }
 
           if (!isAllowed) return null;

@@ -26,7 +26,9 @@ export default function App() {
     setCurrentRole(role);
     setLoggedIn(true);
     if (role === "vendor") setCurrentScreen("quotations");
+    if (role === "purchase_manager") setCurrentScreen("approvals");
     if (role === "admin") setCurrentScreen("dashboard");
+    // procurement_officer defaults to dashboard
   };
 
   if (!loggedIn) return <Login onLogin={handleLogin} />;
