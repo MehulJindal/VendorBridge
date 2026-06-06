@@ -11,6 +11,7 @@ import rfqRoutes from "./modules/rfq/rfq.routes.js";
 import quotationRoutes from "./modules/quotations/quotation.routes.js";
 import purchaseOrderRoutes from "./modules/purchase_orders/purchaseOrder.routes.js";
 import invoiceRoutes from "./modules/invoices/invoice.routes.js";
+import approvalRoutes from "./modules/approvals/approval.routes.js";
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.get("/health", (req, res) => {
  app.use("/api/quotations", quotationRoutes);
  app.use("/api/purchase-orders", purchaseOrderRoutes);
  app.use("/api/invoices", invoiceRoutes);
+ app.use("/api/approvals", approvalRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
